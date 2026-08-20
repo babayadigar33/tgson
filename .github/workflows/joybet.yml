@@ -1,0 +1,44 @@
+name: Joybet Botu (Saatlik)
+
+on:
+  schedule:
+    # Her saat başı (UTC). Türkiye saatiyle her saat +3:xx civarına denk gelir.
+    - cron: "0 * * * *"
+  workflow_dispatch: {}   # Actions sekmesinden elle çalıştırma
+
+permissions:
+  contents: write          # state.json değişikliğini geri push etmek için
+
+jobs:
+  joybet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bağımlılıkları yükle
+        # requirements.txt repoda olmasa da çalışır
+        run: pip install websockets requests pillow
+
+      - name: Botu çalıştır
+        env:
+          # GitHub Secrets'ta tanımlıysa onları kullanır, yoksa koddaki gömülü değer geçerli kalır.
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python joybet_bot.py
+
+      - name: Değişiklik takibini kaydet (state.json)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git add state.json
+            git commit -m "chore: state güncelle"
+            git push
+          fi
